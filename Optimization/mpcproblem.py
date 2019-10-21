@@ -42,6 +42,7 @@ class SCProblem:
         self.par['C_bar'] = cvx.Parameter((m.nx * m.nu, K - 1))
         self.par['z_bar'] = cvx.Parameter((m.nx, K - 1))
 
+        self.par['X_init'] = cvx.Parameter((m.nx,))
         self.par['X_last'] = cvx.Parameter((m.nx, K))
         self.par['U_last'] = cvx.Parameter((m.nu, K))
 
@@ -74,6 +75,9 @@ class SCProblem:
             + self.var['nu'][:, k]
             for k in range(K - 1)
         ]
+
+        # Add initial conditions constraints
+        constraints += [self.var['X'][:, 0] == self.par['X_init']]
 
         # Trust region:
         # Trust Region Constraint

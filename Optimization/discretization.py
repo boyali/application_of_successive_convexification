@@ -29,7 +29,6 @@ class FirstOrderHold:
         self.z_bar_ind = slice(C_bar_end, z_bar_end)
 
         self.f, self.A, self.B = m.get_equations()
-        self.ft = m.get_ft()
 
         # integration initial condition
         self.V0 = np.zeros((m.nx * (1 + m.nx + m.nu + m.nu + 1),))

@@ -38,8 +38,16 @@ class Model:
              path states = s, xw, yw, Ψ, κ, Δs, Δx_ds, Δy_ds
         '''
         self.rpath = rpath
+
+        ## MAP RELATED
         self.current_curvature_map = None
-        self.current_reference_map = rpath[rpath[:, 0] <= 80]  # first 50 meters
+        self.current_reference_map = None
+        self.current_station_index = 0  # keeps the station
+        self.current_station_dist = 0  # the distance travelled on the reference map
+
+        self.st_interval = self.rpath[0, 5]  # distance between two stations in the path file
+        self.st_index_horizon = int(50 / self.st_interval)  # how many station far ahead to get from the file as
+        # reference
 
         # set initial states
         self.x_init = np.zeros((self.nx,))
@@ -61,6 +69,7 @@ class Model:
         self.s_prime_speed = cvx.Variable((K,), nonneg=True)
         self.s_prime_dist = cvx.Variable((K,), nonneg=True)
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
+
 
     def get_equations(self):
         """
@@ -104,7 +113,7 @@ class Model:
         ## ROAD COORDINATES s parametrization
         p = sp.symbols('kappa', real=True)  # external reference as the parameter input - curvature
 
-        # # ## ROAD COORDINATES s parametrization
+        # ## ROAD COORDINATES s parametrization
         # beta = sp.atan(self.lr * sp.tan(x[7, 0]) / self.l)
         # sdot = x[6, 0] * sp.cos(x[5, 0] + beta) / (1 - p * x[4, 0])
         # f[3, 0] = 1  # x[6, 0] * sp.cos(x[5, 0] + beta) / (1 - p * x[4, 0])  # sdot
@@ -156,39 +165,43 @@ class Model:
 
         return f_func, A_func, B_func
 
-    def get_ft(self):
-        f = sp.zeros(self.nx, 1)
-
-        x = sp.Matrix(sp.symbols('xw, yw, ψ, s, ey, epsi, Vx, delta, ts', real=True))
-        u = sp.Matrix(sp.symbols('acc_x, deltadot', real=True))
-
-        ## ROAD COORDINATES s parametrization
-        p = sp.symbols('kappa', real=True)  # external reference as the parameter input - curvature
-
-        f[3, 0] = x[6, 0] * sp.cos(x[5, 0]) / (1 - p * x[4, 0])  # sdot
-
-        f[0, 0] = x[6, 0] * sp.cos(x[2, 0])  # Xw = V*cos(psi)
-        f[1, 0] = x[6, 0] * sp.sin(x[2, 0])  # Yw = V*sin(psi)
-        f[2, 0] = x[6, 0] * sp.tan(x[7, 0]) / (self.lr)  # Psidot = psidot = (V/lr)tan(delta)
-
-        f[4, 0] = x[6, 0] * sp.sin(x[5, 0])  # eydot
-        f[5, 0] = f[2, 0] - p * f[3, 0]  # epsi_dot
-        f[6, 0] = u[0, 0]  # Vxdot = acc_x \input
-        f[7, 0] = u[1, 0]  # delta_dot = delta_dot \input
-        f[8, 0] = 1  # delta_dot = delta_dot \input
-
-        f = sp.simplify(f)
-        f_func = sp.lambdify((x, u, p), f, 'numpy')
-
-        return f_func
 
     def get_current_map(self):
         # path states = s, xw, yw, Ψ, κ, Δs, Δx_ds, Δy_ds
         return self.current_reference_map
 
     def get_curvature_ref(self):
-        # path states = s, xw, yw, Ψ, κ, Δs, Δx_ds, Δy_ds
-        return self.current_reference_map[:, (0, 4)]
+        '''
+             Get the reference curvature for a specific horizon length
+             path states = s, xw, yw, Ψ, κ, Δs, Δx_ds, Δy_ds
+
+             :return : curvature reference κ from [current station --> end station]
+        '''
+
+        # s0 = self.current_station_index
+
+        if self.current_station_index <= 5:
+            s0 = self.current_station_index
+        else:
+            s0 = self.current_station_index - 1
+
+        sf = s0 + self.st_index_horizon
+
+        index_interval = slice(s0, sf)
+
+        self.current_reference_map = self.rpath[index_interval]  # containts all the ref values for the given horizon
+        self.current_curvature_map = self.current_reference_map[:, (0, 4)]
+
+        # plt.plot(current_curvature_ref[:, 0], current_curvature_ref[:, 1])
+        # plt.show()
+        return self.current_curvature_map
+
+    def update_last_station_index(self, distantace_travelled):
+        self.current_station_dist = distantace_travelled
+
+        last_distance = self.current_reference_map[self.current_reference_map[:, 0] <= distantace_travelled][-1, 0]
+        last_index = np.floor(last_distance / self.st_interval).astype(int)
+        self.current_station_index = last_index
 
     def initialize_trajectory(self, X, U):
         """
@@ -241,19 +254,7 @@ class Model:
 
         states = xw, yw, ψ,  s, ey, epsi, Vx, delta, ts
         """
-        # Boundary conditions:
-        constraints = [
-            X_v[:, 0] == self.x_init,
-            # X_v[:, -1] == self.x_final,
-            # X_v[3, -1] == self.x_final[3],
-            # X_v[6, -1] == self.x_final[6],
-            # X_v[6, -1] - self.s_prime_speed <= self.x_final[6],
-            # # X_v[0:-1, -1] == self.x_final[0:-1],
-
-            U_v[0, 0] == 0,
-            U_v[0, -1] == 0
-        ]
-
+        constraints = []
         # TIRE ADHESION COEFFICIENT CONSTRAINT
         muge = cvx.Constant(self.mu * self.g)
 

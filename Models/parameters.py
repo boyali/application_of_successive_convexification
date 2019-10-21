@@ -10,7 +10,7 @@ w_epsi = 1
 w_jerk = 1
 w_deltadot = 1
 
-w_speed_terminal = 1
+w_speed_terminal = 0.1
 w_soft = 5
 
 # initial trust region radius
