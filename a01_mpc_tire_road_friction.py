@@ -71,7 +71,7 @@ logs_pickle['Initial Estimate'] = X
 # Keep the travelled distance
 s0 = 0
 
-for tk in range(80):
+for tk in range(120):
     t0_it = time()
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
@@ -84,7 +84,6 @@ for tk in range(80):
     ds_grid = np.linspace(s0, s0 + target_distance, K)
     kappa_estimated = np.interp(ds_grid, curvature_ref[:, 0], curvature_ref[:, 1])
 
-
     A_bar, B_bar, C_bar, z_bar = integrator.calculate_discretization(X, U, kappa_estimated)
     print(format_line('Time for transition matrices', time() - t0_tm, 's'))
 
@@ -94,6 +93,7 @@ for tk in range(80):
 
     ### ADD SOLUTION TO THE LIST
     state_history_list.append(X[:, 0].copy())
+    state_history_list[-1][3] = s0 # put s0 back when saving
     control_history_list.append(U[:, 0].copy())
 
     ## Convergence
@@ -129,6 +129,9 @@ for tk in range(80):
                 U[:, :-1] = new_U[:, 1:]
                 U[:, -1] = new_U[:, -1]
 
+                # subtract s0 from s all the time
+                X[3, :] = X[3, :] - X[3, 0]
+
                 s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
                 m.update_last_station_index(s0)
                 break
@@ -153,6 +156,9 @@ for tk in range(80):
                 U[:, :-1] = new_U[:, 1:]
                 U[:, -1] = new_U[:, -1]
 
+                # subtract s0 from s all the time
+                X[3, :] = X[3, :] - X[3, 0]
+
                 s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
                 m.update_last_station_index(s0)
                 break
@@ -172,6 +178,9 @@ for tk in range(80):
                     X[:, -1] = X_nl[:, -1]
                     U[:, :-1] = new_U[:, 1:]
                     U[:, -1] = new_U[:, -1]
+
+                    # subtract s0 from s all the time
+                    X[3, :] = X[3, :] - X[3, 0]
 
                     s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
                     m.update_last_station_index(s0)
@@ -199,9 +208,9 @@ for tk in range(80):
             print('It is not optimal, recomputing by the new trust region \n')
             print(f'Trust region too large. Solving again with radius={tr_radius}')
 
-            # tr_radius /= alpha
-            #
-            # problem.set_parameters(tr_radius=tr_radius)
+            tr_radius /= alpha
+
+            problem.set_parameters(tr_radius=tr_radius)
 
 
     print('')

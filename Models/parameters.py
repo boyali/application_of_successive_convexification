@@ -14,7 +14,7 @@ w_speed_terminal = 0.1
 w_soft = 5
 
 # initial trust region radius
-tr_radius = 20
+tr_radius = 10
 
 # trust region variables
 rho_0 = 0.0
@@ -65,17 +65,17 @@ states = ['xw', 'yw', 'psi', 's', 'ey', 'epsi', 'Vx', 'delta', 'ts']
 upper_bounds_states = {var_name: 0 for var_name in states}
 lower_bounds_states = {var_name: 0 for var_name in states}
 
-upper_bounds_states['s'] = 100
+upper_bounds_states['s'] = 20
 lower_bounds_states['s'] = 0
 
-upper_bounds_states['delta'] = np.deg2rad(27)  # deg/sec to rad/sec
-lower_bounds_states['delta'] = np.deg2rad(-27)  # deg/sec to rad/sec
+upper_bounds_states['delta'] = np.deg2rad(40)  # deg/sec to rad/sec
+lower_bounds_states['delta'] = np.deg2rad(-40)  # deg/sec to rad/sec
 
 upper_bounds_states['ey'] = 1
 lower_bounds_states['ey'] = -1
 
 upper_bounds_states['Vx'] = 20  # m/s
-lower_bounds_states['Vx'] = 0
+lower_bounds_states['Vx'] = 6
 
 upper_bounds_states['ts'] = 10  # time scale
 lower_bounds_states['ts'] = 0
@@ -85,8 +85,8 @@ controls = ['acc_x', 'delta_dot']
 upper_bounds_controls = {var_name: 0 for var_name in controls}
 lower_bounds_controls = {var_name: 0 for var_name in controls}
 
-upper_bounds_controls['acc_x'] = 10  # acceleration bound 5 m/s/s
-lower_bounds_controls['acc_x'] = -10
+upper_bounds_controls['acc_x'] = 5  # acceleration bound 5 m/s/s
+lower_bounds_controls['acc_x'] = -5
 
 upper_bounds_controls['delta_dot'] = np.deg2rad(60)  # steering rate
 lower_bounds_controls['delta_dot'] = -np.deg2rad(60)

@@ -256,23 +256,23 @@ class Model:
         """
         constraints = []
         # TIRE ADHESION COEFFICIENT CONSTRAINT
-        muge = cvx.Constant(self.mu * self.g)
-
-        # a_y = kappa[:] * X_last_p[6, :] ** 2 + 2 * kappa[:] * X_last_p[6, :] * (X_v[6, :] - X_last_p[6, :])
-        a_y = [kappa[k] * X_last_p[6, k] ** 2 + 2 * kappa[k] * X_last_p[6, k] * (X_v[6, k] - X_last_p[6, k])
-               for k in range(self.K)]
-
-        soc_constraints = [cvx.square(U_v[0, k]) + a_y[k] ** 2 <= muge ** 2 for k in range(self.K)]
-        constraints += soc_constraints
+        # muge = cvx.Constant(self.mu * self.g)
+        #
+        # a_y = [kappa[k] * X_last_p[6, k] ** 2 + 2 * kappa[k] * X_last_p[6, k] * (X_v[6, k] - X_last_p[6, k])
+        #        for k in range(self.K)]
+        #
+        # soc_constraints = [cvx.square(U_v[0, k]) + a_y[k] ** 2 <= muge ** 2 for k in range(self.K)]
+        # constraints += soc_constraints
 
         # STATE BOUNDS and LOWER BOUNDS
         state_upper = upper_bounds_states
+        state_lower = lower_bounds_states
+
         # constraints += [cvx.abs(X_v[7, :]) - self.s_prime_delta <= state_upper['delta']]  # constraint on the steering
         constraints += [cvx.abs(X_v[7, :]) <= state_upper['delta']]
-        constraints += [X_v[6, :] >= 0.1]
+        constraints += [X_v[6, :] >= state_lower['Vx']]
         constraints += [X_v[6, :] <= state_upper['Vx']]
 
-        # constraints += [X_v[8, -1] - X_v[8, -2] >= 0.01]
 
         ## Error Bounds
         # constraints += [cvx.abs(X_v[4, :])<=0.1]
@@ -281,12 +281,12 @@ class Model:
         # UPPER LIMITS of CONTROLS
 
         control_upper = upper_bounds_controls
-        # constraints += [cvx.abs(U_v[0, :]) <= control_upper['acc_x']]
-        # constraints += [U_v[0, :] <= 0]  # control_upper['acc_x']]
+        constraints += [cvx.abs(U_v[0, :]) <= control_upper['acc_x']]
+
         # constraints += [cvx.abs(U_v[1, :]) <= control_upper['delta_dot']]
-        Deltat = X_v[-1, 1:] - X_v[-1, :-1]
-        DeltaSigma = X_v[7, 1:] - X_v[7, :-1]
-        constraints += [cvx.abs(DeltaSigma) <= control_upper['delta_dot'] * Deltat]
+        # Deltat = X_v[-1, 1:] - X_v[-1, :-1]
+        # DeltaSigma = X_v[7, 1:] - X_v[7, :-1]
+        # constraints += [cvx.abs(DeltaSigma) <= control_upper['delta_dot'] * Deltat]
 
         ## Window Constraints
         # constraints += [X_v[6, 20:25] == 10]
@@ -328,7 +328,7 @@ class Model:
         objective += cvx.Minimize(cvx.norm(U_v[1, :]) * w_deltadot)
 
         # Terminal Value Objective D_x is the scaler defined in the parameters file
-        objective += cvx.Minimize(cvx.norm(X_v[6, -1] - self.x_final[6] * D_x[6, 6] - C_x[6, 6]) * w_speed_terminal)
+        # objective += cvx.Minimize(cvx.norm(X_v[6, -1] - self.x_final[6] * D_x[6, 6] - C_x[6, 6]) * w_speed_terminal)
         # objective += cvx.Minimize(cvx.norm(X_v[3, -1] - self.x_final[3] * D_x[3, 3]) * w_speed_terminal)
 
         # Slack Variable Minimization
