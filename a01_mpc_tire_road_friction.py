@@ -2,7 +2,7 @@ from time import time
 import numpy as np
 from Models.model_scoordinates import Model
 from Optimization.discretization import FirstOrderHold
-from Optimization.mpcproblem import SCProblem
+from Optimization.mpcproblem import MPCproblem
 from Models.parameters import *
 from Models.utils import *
 import pickle
@@ -12,23 +12,14 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 20, 12  # [m], [m/s]
+target_distance, target_speed = 50, 12  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
 
-
-## INITIALIZE THE INITIAL STATES
-m.x_init[6] = target_speed
-
-
-# state and input
-X = np.empty(shape=[m.nx, K])
-U = np.empty(shape=[m.nu, K])
-
 # INTEGRATOR --------------------------------------------------------------------------------------------------------
 integrator = FirstOrderHold(m, K, sigma)
-problem = SCProblem(m, K)
+problem = MPCproblem(m, K)
 
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, D_uhat=D_uhat, D_u=D_u)
 
@@ -42,12 +33,34 @@ converged = False
     Since our states are on the equi-distance grid, we know the curvature in advance
 '''
 
+x0 = np.zeros((m.nx,))  # initial states
+Xw0, Yw0, Psiw0 = m.get_path_start()
+Xc0, Yc0, Psic0 = 100, 0, np.deg2rad(90)
 
-X, U = m.initialize_trajectory(X, U)
+ey, epsi = m.compute_initial_errors([Xw0, Yw0, Psiw0], [Xc0, Yc0, Psic0])
 
-# U = np.zeros((2, K))
-# x0 = m.x_init
-# X = integrator.integrate_nonlinear_full(x0, U, kappa_estimated)
+x0[0] = Xc0  # Xcar
+x0[1] = Yc0  # Ycar
+x0[2] = Psic0  # Psicar
+x0[4] = ey  # assign initial lateral error - ey
+x0[5] = epsi  # assign initial heading angle error -epsi
+x0[6] = target_speed  # assign initial velocity Vx#
+m.x_init = x0
+
+# X = np.zeros((m.nx, K))
+# U = np.zeros((m.nu, K))
+# X, U = m.initialize_trajectory(X, U)
+
+# Keep the travelled distance
+s0 = 0
+
+## Get Curvature Reference
+curvature_ref = m.get_curvature_ref()
+ds_grid = np.linspace(s0, s0 + target_distance, K)
+kappa_estimated = np.interp(ds_grid, curvature_ref[:, 0], curvature_ref[:, 1])
+
+U = np.zeros((m.nu, K))
+X = integrator.integrate_nonlinear_full(x0, U, kappa_estimated)
 
 # Keep State History and Save to Logs
 
@@ -67,11 +80,7 @@ optimization_history = {key: [] for key in ['sc_cost', 'constraint_cost']}
 logs_pickle = dict()
 logs_pickle['Initial Estimate'] = X
 
-
-# Keep the travelled distance
-s0 = 0
-
-for tk in range(120):
+for tk in range(10):
     t0_it = time()
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
@@ -85,6 +94,7 @@ for tk in range(120):
     kappa_estimated = np.interp(ds_grid, curvature_ref[:, 0], curvature_ref[:, 1])
 
     A_bar, B_bar, C_bar, z_bar = integrator.calculate_discretization(X, U, kappa_estimated)
+
     print(format_line('Time for transition matrices', time() - t0_tm, 's'))
 
     problem.set_parameters(A_bar=A_bar, B_bar=B_bar, C_bar=C_bar, z_bar=z_bar, X_init=X[:, 0],
@@ -93,7 +103,7 @@ for tk in range(120):
 
     ### ADD SOLUTION TO THE LIST
     state_history_list.append(X[:, 0].copy())
-    state_history_list[-1][3] = s0 # put s0 back when saving
+    state_history_list[-1][3] = s0  # put s0 back when saving
     control_history_list.append(U[:, 0].copy())
 
     ## Convergence
@@ -103,7 +113,7 @@ for tk in range(120):
         error = problem.solve(verbose=verbose_solver, solver=solver, max_iters=200)
         print(format_line('Solver Error', error))
 
-        if error =='optimal':
+        if error in ['optimal', 'optimal_inaccurate']:
 
             # get solution
             new_X = problem.get_variable('X')
@@ -112,11 +122,15 @@ for tk in range(120):
             # X_nl = integrator.integrate_nonlinear_full(x0, new_U, kappa_estimated)
             X_nl = integrator.integrate_nonlinear_piecewise(new_X, new_U, kappa_estimated)
 
+            ## Make the distance travelled relative wrt the start point
+            new_X[3, :] = new_X[3, :] - new_X[3, 0]
+            X_nl[3, :] = X_nl[3, :] - X_nl[3, 0]
+
             linear_cost_dynamics = np.linalg.norm(problem.get_variable('nu'), 1)
             nonlinear_cost_dynamics = np.linalg.norm(new_X - X_nl, 1)
 
             linear_cost_constraints = m.get_linear_cost_constraints()  # m.get_linear_cost()
-            nonlinear_cost_constraints = 0  # m.get_nonlinear_cost_constraints(X_nl, new_U, kappa_estimated)  #
+            nonlinear_cost_constraints = m.get_nonlinear_cost_constraints(X_nl, new_U, kappa_estimated)  #
             # m.get_nonlinear_cost(X=new_X, U=new_U)
 
             linear_cost = linear_cost_dynamics + linear_cost_constraints  # J
@@ -128,9 +142,6 @@ for tk in range(120):
                 X[:, -1] = X_nl[:, -1]
                 U[:, :-1] = new_U[:, 1:]
                 U[:, -1] = new_U[:, -1]
-
-                # subtract s0 from s all the time
-                X[3, :] = X[3, :] - X[3, 0]
 
                 s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
                 m.update_last_station_index(s0)
@@ -147,7 +158,7 @@ for tk in range(120):
             print(format_line('Predicted change', predicted_change))
             print('')
 
-            if abs(predicted_change) < 1e-2:
+            if abs(predicted_change) < 1e-1:
                 last_nonlinear_cost = nonlinear_cost
                 converged = True
 
@@ -155,9 +166,6 @@ for tk in range(120):
                 X[:, -1] = X_nl[:, -1]
                 U[:, :-1] = new_U[:, 1:]
                 U[:, -1] = new_U[:, -1]
-
-                # subtract s0 from s all the time
-                X[3, :] = X[3, :] - X[3, 0]
 
                 s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
                 m.update_last_station_index(s0)
@@ -169,6 +177,10 @@ for tk in range(120):
                     # reject solution
                     tr_radius /= alpha
                     print(f'Trust region too large. Solving again with radius={tr_radius}')
+
+                    if tr_radius < 1e-1:
+                        breakpoint
+
                 else:
                     # accept solution
                     last_nonlinear_cost = nonlinear_cost
@@ -179,9 +191,6 @@ for tk in range(120):
                     U[:, :-1] = new_U[:, 1:]
                     U[:, -1] = new_U[:, -1]
 
-                    # subtract s0 from s all the time
-                    X[3, :] = X[3, :] - X[3, 0]
-
                     s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
                     m.update_last_station_index(s0)
 
@@ -190,6 +199,8 @@ for tk in range(120):
                     if rho < rho_1:
                         print('Decreasing radius.')
                         tr_radius /= alpha
+
+
                     elif rho >= rho_2:
                         print('Increasing radius.')
                         tr_radius *= beta
@@ -210,14 +221,14 @@ for tk in range(120):
 
             tr_radius /= alpha
 
-            problem.set_parameters(tr_radius=tr_radius)
+            if tr_radius < 1e-2:
+                break
 
+            problem.set_parameters(tr_radius=tr_radius)
 
     print('')
     print(format_line('Time for iteration', time() - t0_it, 's'))
     print('')
-
-
 
 logs_pickle['States'] = np.vstack(state_history_list).transpose()
 logs_pickle['Controls'] = np.vstack(control_history_list).transpose()

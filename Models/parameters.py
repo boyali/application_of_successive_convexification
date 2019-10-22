@@ -10,11 +10,12 @@ w_epsi = 1
 w_jerk = 1
 w_deltadot = 1
 
-w_speed_terminal = 0.1
+w_speed = 1
+w_speed_terminal = 1
 w_soft = 5
 
 # initial trust region radius
-tr_radius = 10
+tr_radius = 5
 
 # trust region variables
 rho_0 = 0.0
@@ -75,7 +76,7 @@ upper_bounds_states['ey'] = 1
 lower_bounds_states['ey'] = -1
 
 upper_bounds_states['Vx'] = 20  # m/s
-lower_bounds_states['Vx'] = 6
+lower_bounds_states['Vx'] = 10
 
 upper_bounds_states['ts'] = 10  # time scale
 lower_bounds_states['ts'] = 0

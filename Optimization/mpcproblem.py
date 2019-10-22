@@ -1,7 +1,7 @@
 import cvxpy as cvx
 
 
-class SCProblem:
+class MPCproblem:
     """
     Defines a standard Successive Convexification problem and adds the model specific constraints and objectives.
 
@@ -18,10 +18,6 @@ class SCProblem:
         self.var['X_hat'] = cvx.Variable((m.nx, self.K))  # state trajectory
         self.var['U_hat'] = cvx.Variable((m.nu, self.K))  # until the end of trajectory because of FOH otherwise K-1
         self.var['nu_hat'] = cvx.Variable((m.nx, self.K - 1))
-
-        self.var['X'] = cvx.Variable((m.nx, K))
-        self.var['U'] = cvx.Variable((m.nu, K))
-        self.var['nu'] = cvx.Variable((m.nx, K - 1))
 
         # Scaling Variables
         self.par = dict()
@@ -101,6 +97,7 @@ class SCProblem:
 
         sc_objective = cvx.Minimize(self.par['weight_nu'] * cvx.norm(self.var['nu'], 1))
         # sc_objective += cvx.Minimize(cvx.sum_squares(dx) + cvx.sum_squares(du))
+
         objective = sc_objective + model_objective
 
         self.prob = cvx.Problem(objective, constraints)

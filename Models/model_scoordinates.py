@@ -4,6 +4,7 @@ import sympy as sp
 
 from global_parameters import K
 from Models.parameters import *
+from Optimization.utils import *
 
 
 class Model:
@@ -69,7 +70,6 @@ class Model:
         self.s_prime_speed = cvx.Variable((K,), nonneg=True)
         self.s_prime_dist = cvx.Variable((K,), nonneg=True)
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
-
 
     def get_equations(self):
         """
@@ -164,7 +164,6 @@ class Model:
         B_func = sp.lambdify((x, u, p), B, 'numpy')
 
         return f_func, A_func, B_func
-
 
     def get_current_map(self):
         # path states = s, xw, yw, Ψ, κ, Δs, Δx_ds, Δy_ds
@@ -273,20 +272,18 @@ class Model:
         constraints += [X_v[6, :] >= state_lower['Vx']]
         constraints += [X_v[6, :] <= state_upper['Vx']]
 
-
         ## Error Bounds
         # constraints += [cvx.abs(X_v[4, :])<=0.1]
         # constraints += [cvx.abs(X_v[5, :]) <= np.deg2rad(5)]
 
         # UPPER LIMITS of CONTROLS
-
         control_upper = upper_bounds_controls
         constraints += [cvx.abs(U_v[0, :]) <= control_upper['acc_x']]
 
         # constraints += [cvx.abs(U_v[1, :]) <= control_upper['delta_dot']]
-        # Deltat = X_v[-1, 1:] - X_v[-1, :-1]
-        # DeltaSigma = X_v[7, 1:] - X_v[7, :-1]
-        # constraints += [cvx.abs(DeltaSigma) <= control_upper['delta_dot'] * Deltat]
+        Deltat = X_v[-1, 1:] - X_v[-1, :-1]
+        DeltaSigma = X_v[7, 1:] - X_v[7, :-1]
+        constraints += [cvx.abs(DeltaSigma) <= control_upper['delta_dot'] * Deltat]
 
         ## Window Constraints
         # constraints += [X_v[6, 20:25] == 10]
@@ -320,7 +317,7 @@ class Model:
         objective += cvx.Minimize(cvx.norm(X_v[5, :]) * w_epsi)
 
         # Speed Objective
-        # objective = cvx.Minimize(cvx.norm(X_v[6, :]) * param_opt.weight_speed)
+        objective = cvx.Minimize(cvx.norm(X_v[6, :] - self.x_init[6] * D_x[6, 6] - C_x[6, 6]) * w_speed)
 
         # CONTROL OBJECTIVE
         du = U_v[0, 1:] - U_v[0, :-1]
@@ -328,8 +325,7 @@ class Model:
         objective += cvx.Minimize(cvx.norm(U_v[1, :]) * w_deltadot)
 
         # Terminal Value Objective D_x is the scaler defined in the parameters file
-        # objective += cvx.Minimize(cvx.norm(X_v[6, -1] - self.x_final[6] * D_x[6, 6] - C_x[6, 6]) * w_speed_terminal)
-        # objective += cvx.Minimize(cvx.norm(X_v[3, -1] - self.x_final[3] * D_x[3, 3]) * w_speed_terminal)
+        # objective += cvx.Minimize(cvx.norm(X_v[6, -1] - (self.x_final[6] * D_x[6, 6] + C_x[6, 6])) * w_speed_terminal)
 
         # Slack Variable Minimization
         # objective += cvx.Minimize(cvx.norm(self.s_prime_delta) * w_soft)
@@ -350,13 +346,42 @@ class Model:
         return total_slack_cost
 
     def get_nonlinear_cost_constraints(self, Xnl, U, kappa):
-        muge = self.mu * self.g
+        cost = 0
+        # muge = self.mu * self.g
+        #
+        # acc_y = kappa * Xnl[6, :] ** 2
+        # acc_x = U[0, :]
+        # acc_c = np.hypot(acc_y, acc_x)
+        #
+        # # constraint violation
+        # cost = - np.sum(np.minimum((muge - acc_c), 0))
 
-        acc_y = kappa * Xnl[6, :] ** 2
-        acc_x = U[0, :]
-        acc_c = np.hypot(acc_y, acc_x)
-
-        # constraint violation
-        cost = - np.sum(np.minimum((muge - acc_c), 0))
+        # STEERING VIOLATION
+        # deltamax = upper_bounds_states['delta']
+        # cost += np.linalg.norm(Xnl[7, :]-deltamax, 1)
 
         return cost
+
+    def compute_initial_errors(self, Xw, Xcar):
+        '''
+
+        :param Xw: [Xw0, Yw0, Psiw0]
+        :param Xcar: [Xcar, Ycar, Pcar]
+        :return: ey, epsi
+        '''
+
+        Xw0, Yw0, Psiw0 = Xw  # extract the states
+        Xc0, Yc0, Psic0 = Xcar
+
+        epsi = wrapToPi(Psic0 - Psiw0)
+        # ey = (Yc0 - Yw0) * np.cos(Psic0) - (Xc0 - Xw0) * np.sin(Psic0)
+        ey = (Yc0 - Yw0) * np.cos(Psic0) - (Xc0 - Xw0) * np.sin(Psic0)
+
+        return ey, epsi
+
+    def get_path_start(self):
+        X0 = self.rpath[0, 1]
+        Y0 = self.rpath[0, 2]
+        Psi0 = self.rpath[0, 3]
+
+        return X0, Y0, Psi0

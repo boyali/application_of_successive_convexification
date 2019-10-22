@@ -1,5 +1,5 @@
 # Trajectory points
-K = 20
+K = 25
 
 # Max solver iterations
 iterations = 10
