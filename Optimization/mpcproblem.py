@@ -55,6 +55,7 @@ class MPCproblem:
 
         # ADD Desired Velocity
         self.par['Vdes'] = cvx.Parameter()
+        self.par['eydes'] = cvx.Parameter()
 
         # Constraints:
         constraints = []

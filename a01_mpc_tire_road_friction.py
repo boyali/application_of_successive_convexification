@@ -12,7 +12,7 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 20, 12  # [m], [m/s]
+target_distance, target_speed = 40, 12  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
@@ -22,6 +22,7 @@ integrator = FirstOrderHold(m, K, sigma)
 problem = MPCproblem(m, K)
 
 problem.set_parameters(Vdes=target_speed)
+problem.set_parameters(eydes=0)
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, D_uhat=D_uhat, D_u=D_u)
 
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, C_xhat=C_xhat, C_x=C_x,

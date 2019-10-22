@@ -285,6 +285,10 @@ class Model:
         DeltaSigma = X_v[7, 1:] - X_v[7, :-1]
         constraints += [cvx.abs(DeltaSigma) <= control_upper['delta_dot'] * Deltat]
 
+        ## MOVE BLOCKING
+        # constraints += [U_v[:, k] == U_v[:, 5] for k in range(6, 10)]
+        # constraints += [U_v[:, k] == U_v[:, 12] for k in range(13, 18)]
+
         ## Window Constraints
         # constraints += [X_v[6, 20:25] == 10]
 
