@@ -72,8 +72,11 @@ lower_bounds_states['s'] = 0
 upper_bounds_states['delta'] = np.deg2rad(40)  # deg/sec to rad/sec
 lower_bounds_states['delta'] = np.deg2rad(-40)  # deg/sec to rad/sec
 
-upper_bounds_states['ey'] = 1
-lower_bounds_states['ey'] = -1
+upper_bounds_states['ey'] = 0.5
+lower_bounds_states['ey'] = -0.5
+
+upper_bounds_states['epsi'] = np.deg2rad(3)
+lower_bounds_states['epsi'] = -np.deg2rad(3)
 
 upper_bounds_states['Vx'] = 20  # m/s
 lower_bounds_states['Vx'] = 10

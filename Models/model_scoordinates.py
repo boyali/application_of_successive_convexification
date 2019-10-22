@@ -297,7 +297,7 @@ class Model:
 
         return constraints
 
-    def get_objective(self, X_v, U_v, X_last=0, U_last=0, Vdes=0):
+    def get_objective(self, X_v, U_v, X_last, U_last, Vdes):
         """
         Get model specific objective to be minimized.
 
@@ -317,7 +317,7 @@ class Model:
         objective += cvx.Minimize(cvx.norm(X_v[5, :]) * w_epsi)
 
         # Speed Objective
-        # objective = cvx.Minimize(cvx.norm(X_v[6, :] - Vdes * D_x[6, 6] - C_x[6, 6]) * w_speed)
+        objective += cvx.Minimize(cvx.norm(X_v[6, :] - Vdes * D_x[6, 6] - C_x[6, 6]) * w_speed)
 
         # CONTROL OBJECTIVE
         du = U_v[0, 1:] - U_v[0, :-1]

@@ -85,8 +85,8 @@ class MPCproblem:
         # dx = self.var['X_hat'] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])
 
         du = self.var['U_hat'] - (self.par['D_u'] * self.par['U_last'] + self.par['C_u'])
-        # dx = self.var['X_hat'][4:-1, :] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])[4:-1, :]
-        dx = self.var['X_hat'] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])
+        dx = self.var['X_hat'][4:-1, :] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])[4:-1, :]
+        # dx = self.var['X_hat'] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])
         # ddu = cvx.vstack([du, dx])
 
         # constraints += [cvx.norm(ddu[:, k], 1) <= self.par['tr_radius'] for k in range(self.K)]
@@ -95,8 +95,9 @@ class MPCproblem:
 
         # Objective:
         # model_objective = m.get_objective(self.var['X'], self.var['U'], self.par['X_last'], self.par['U_last'])
-        model_objective = m.get_objective(self.var['X_hat'], self.var['U_hat'],
-                                          self.par['D_u'] * self.par['U_last'] + (self).par['C_u'], self.par['Vdes'])
+        model_objective = m.get_objective(self.var['X_hat'], self.var['U_hat'], self.par['D_x'] * self.par['X_last']
+                                          + (self).par['C_x'], self.par['D_u'] * self.par['U_last'] + (self).par['C_u'],
+                                          self.par['Vdes'])
 
         sc_objective = cvx.Minimize(self.par['weight_nu'] * cvx.norm(self.var['nu'], 1))
         # sc_objective += cvx.Minimize(cvx.sum_squares(dx) + cvx.sum_squares(du))
