@@ -53,7 +53,7 @@ class Model:
         # set initial states
         self.x_init = np.zeros((self.nx,))
         self.x_init[0:3] = self.rpath[0, (1, 2, 3)]  # set x, y, psi
-        # self.x_init[6] = 5  # set speed m/s
+        self.x_init[6] = target_velocity  # set speed m/s
 
         # set final states
         self.x_final = np.zeros((self.nx,))
@@ -297,7 +297,7 @@ class Model:
 
         return constraints
 
-    def get_objective(self, X_v, U_v, X_last=0, U_last=0):
+    def get_objective(self, X_v, U_v, X_last=0, U_last=0, Vdes=0):
         """
         Get model specific objective to be minimized.
 
@@ -317,7 +317,7 @@ class Model:
         objective += cvx.Minimize(cvx.norm(X_v[5, :]) * w_epsi)
 
         # Speed Objective
-        objective = cvx.Minimize(cvx.norm(X_v[6, :] - self.x_init[6] * D_x[6, 6] - C_x[6, 6]) * w_speed)
+        # objective = cvx.Minimize(cvx.norm(X_v[6, :] - Vdes * D_x[6, 6] - C_x[6, 6]) * w_speed)
 
         # CONTROL OBJECTIVE
         du = U_v[0, 1:] - U_v[0, :-1]
@@ -325,7 +325,7 @@ class Model:
         objective += cvx.Minimize(cvx.norm(U_v[1, :]) * w_deltadot)
 
         # Terminal Value Objective D_x is the scaler defined in the parameters file
-        # objective += cvx.Minimize(cvx.norm(X_v[6, -1] - (self.x_final[6] * D_x[6, 6] + C_x[6, 6])) * w_speed_terminal)
+        # objective += cvx.Minimize(cvx.norm(X_v[6, -1] - (Vdes * D_x[6, 6] + C_x[6, 6])) * w_speed_terminal)
 
         # Slack Variable Minimization
         # objective += cvx.Minimize(cvx.norm(self.s_prime_delta) * w_soft)
@@ -385,3 +385,12 @@ class Model:
         Psi0 = self.rpath[0, 3]
 
         return X0, Y0, Psi0
+
+    def get_current_XYPsi(self, s):
+
+        map = self.current_reference_map
+        X = np.interp(s, map[:, 0], map[:, 1])
+        Y = np.interp(s, map[:, 0], map[:, 2])
+        Psi = np.interp(s, map[:, 0], map[:, 3])
+
+        return X, Y, Psi

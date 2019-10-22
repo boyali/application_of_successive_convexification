@@ -7,10 +7,10 @@ w_nu = 1e5  # virtual control
 w_ey = 1
 w_epsi = 1
 
-w_jerk = 1
-w_deltadot = 1
+w_jerk = 0.5
+w_deltadot = 0.5
 
-w_speed = 1
+w_speed = 0.1
 w_speed_terminal = 1
 w_soft = 5
 

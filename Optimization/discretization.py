@@ -151,8 +151,35 @@ class FirstOrderHold:
         X_nl[:, 0] = x0
 
         for k in range(self.K - 1):
-            X_nl[:, k + 1] = odeint(self._dx, X_nl[:, k], (0, self.dt),
-                                    args=(U[:, k], U[:, k + 1], Kappa[k], Kappa[k + 1]))[1, :]
+            # deltat = X_l[-1, k + 1] - X_l[-1, k]
+            # X_nl[:, k + 1] = odeint(self._dx, X_nl[:, k], (0, deltat),
+            #                         args=(U[:, k], U[:, k + 1], Kappa[k], Kappa[k + 1]))[1, :]
+
+            '''
+                ODEINT of SCIPY
+            '''
+            # X_nl[:, k + 1] = odeint(self._dx, X_nl[:, k], (0, self.dt),
+            #                         args=(U[:, k], U[:, k + 1], Kappa[k], Kappa[k + 1]))[1, :]
+
+            '''
+                SOLVE_IVP of scipy
+            '''
+            sol = solve_ivp(fun=lambda t, y: self._dx(y, t, U[:, k], U[:, k + 1], Kappa[k], Kappa[k + 1]),
+                            y0=X_nl[:, k], t_span=[0, self.dt], method='Radau')  # RK45, RK23, Radau, LSODA, BDF
+
+            X_nl[:, k + 1] = sol.y[:, -1]
+
+            '''
+                SOLVE  of SCIKITS.ODES
+                method = bdf, admo, rk5, rk8
+            '''
+            # sol = sc.odeint(rhsfun=lambda t, x, xdot:
+            # self._dxsc(t, x, xdot, U[:, k], U[:, k + 1], Kappa[k], Kappa[k + 1]), tout=(0, self.dt), y0=X_nl[:, k],
+            #                 method='rk8', old_api=False)
+            #
+            # X_nl[:, k + 1] = sol.values.y[-1, :]
+
+            # print(k)
 
         return X_nl
 

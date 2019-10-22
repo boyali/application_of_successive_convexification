@@ -12,7 +12,7 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 50, 12  # [m], [m/s]
+target_distance, target_speed = 20, 12  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
@@ -21,6 +21,7 @@ m = Model(rpath, target_distance, target_speed)
 integrator = FirstOrderHold(m, K, sigma)
 problem = MPCproblem(m, K)
 
+problem.set_parameters(Vdes=target_speed)
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, D_uhat=D_uhat, D_u=D_u)
 
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, C_xhat=C_xhat, C_x=C_x,
@@ -80,7 +81,7 @@ optimization_history = {key: [] for key in ['sc_cost', 'constraint_cost']}
 logs_pickle = dict()
 logs_pickle['Initial Estimate'] = X
 
-for tk in range(10):
+for tk in range(500):
     t0_it = time()
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
@@ -93,6 +94,15 @@ for tk in range(10):
     ds_grid = np.linspace(s0, s0 + target_distance, K)
     kappa_estimated = np.interp(ds_grid, curvature_ref[:, 0], curvature_ref[:, 1])
 
+    # ## SET ERROR
+    # Xwc, Ywc, Psiwc = m.get_current_XYPsi(s=s0)
+    # Xc0, Yc0, Psic0 = X[0, 0], X[1, 0], X[2, 0]
+    #
+    # ey, epsi = m.compute_initial_errors([Xw0, Yw0, Psiw0], [Xc0, Yc0, Psic0])
+    # X[4, 0] = ey
+    # X[5, 0] = epsi
+
+    X = integrator.integrate_nonlinear_full(X[:, 0], U, kappa_estimated)
     A_bar, B_bar, C_bar, z_bar = integrator.calculate_discretization(X, U, kappa_estimated)
 
     print(format_line('Time for transition matrices', time() - t0_tm, 's'))
@@ -120,7 +130,7 @@ for tk in range(10):
             new_U = problem.get_variable('U')
 
             # X_nl = integrator.integrate_nonlinear_full(x0, new_U, kappa_estimated)
-            X_nl = integrator.integrate_nonlinear_piecewise(new_X, new_U, kappa_estimated)
+            X_nl = integrator.integrate_nonlinear_piecewise(X, new_U, kappa_estimated)
 
             ## Make the distance travelled relative wrt the start point
             new_X[3, :] = new_X[3, :] - new_X[3, 0]
@@ -138,8 +148,9 @@ for tk in range(10):
 
             if last_nonlinear_cost is None:
                 last_nonlinear_cost = nonlinear_cost
-                X[:, :-1] = X_nl[:, 1:]
-                X[:, -1] = X_nl[:, -1]
+                X[:, :-1] = new_X[:, 1:]
+                X[:, -1] = new_X[:, -1]
+
                 U[:, :-1] = new_U[:, 1:]
                 U[:, -1] = new_U[:, -1]
 
@@ -158,16 +169,17 @@ for tk in range(10):
             print(format_line('Predicted change', predicted_change))
             print('')
 
-            if abs(predicted_change) < 1e-1:
+            if abs(predicted_change) < 1e-2:
                 last_nonlinear_cost = nonlinear_cost
                 converged = True
 
                 X[:, :-1] = X_nl[:, 1:]
                 X[:, -1] = X_nl[:, -1]
+
                 U[:, :-1] = new_U[:, 1:]
                 U[:, -1] = new_U[:, -1]
 
-                s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
+                s0 = s0 + new_X[3, 1] - new_X[3, 0]
                 m.update_last_station_index(s0)
                 break
 
@@ -179,7 +191,7 @@ for tk in range(10):
                     print(f'Trust region too large. Solving again with radius={tr_radius}')
 
                     if tr_radius < 1e-1:
-                        breakpoint
+                        a = 1
 
                 else:
                     # accept solution
@@ -188,10 +200,11 @@ for tk in range(10):
 
                     X[:, :-1] = X_nl[:, 1:]
                     X[:, -1] = X_nl[:, -1]
+
                     U[:, :-1] = new_U[:, 1:]
                     U[:, -1] = new_U[:, -1]
 
-                    s0 = s0 + X_nl[3, 1] - X_nl[3, 0]
+                    s0 = s0 + new_X[3, 1] - new_X[3, 0]
                     m.update_last_station_index(s0)
 
                     print('Solution accepted.')
@@ -205,7 +218,6 @@ for tk in range(10):
                         print('Increasing radius.')
                         tr_radius *= beta
 
-                    last_nonlinear_cost = nonlinear_cost
                     break
 
             problem.set_parameters(tr_radius=tr_radius)
@@ -219,7 +231,8 @@ for tk in range(10):
             print('It is not optimal, recomputing by the new trust region \n')
             print(f'Trust region too large. Solving again with radius={tr_radius}')
 
-            tr_radius /= alpha
+            # tr_radius /= alpha
+            tr_radius *= beta
 
             if tr_radius < 1e-2:
                 break
