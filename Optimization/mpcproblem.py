@@ -56,12 +56,6 @@ class MPCproblem:
         # ADD Desired Velocity and Obstacle Avoidance Paprameters
         self.par['Vdes'] = cvx.Parameter()  # desired velocity is set by this parameter
 
-        '''
-            These parameters are set by default to higher margins so that they are passive when there is no obstacle
-        '''
-        self.par['eydes_min'] = cvx.Parameter(value=-1) # desired eydes_min is set by this parameter
-        self.par['eydes_max'] = cvx.Parameter(value=1)  # desired eydes_max is set by this parameter
-        self.par['obstacle_ind'] = cvx.Parameter(value=0, integer=True)  # desired eydes_max is set by this parameter
 
         # Constraints:
         constraints = []
@@ -73,7 +67,7 @@ class MPCproblem:
 
 
         # Get Obstacle Constraints
-        constraints += m.get_constraints_obstacles(self.var["X"], self.par)
+        constraints += m.get_constraints_obstacles(self.var["X"])
 
         # Dynamics:
         constraints += [

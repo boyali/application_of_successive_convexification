@@ -12,7 +12,7 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 40, 12  # [m], [m/s]
+target_distance, target_speed = 30, 10  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
@@ -22,7 +22,7 @@ integrator = FirstOrderHold(m, K, sigma)
 problem = MPCproblem(m, K)
 
 problem.set_parameters(Vdes=target_speed)
-problem.set_parameters(eydes=0)
+
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, D_uhat=D_uhat, D_u=D_u)
 
 problem.set_parameters(D_xhat=D_xhat, D_x=D_x, C_xhat=C_xhat, C_x=C_x,
@@ -83,7 +83,10 @@ optimization_history = {key: [] for key in ['sc_cost', 'constraint_cost']}
 logs_pickle = dict()
 logs_pickle['Initial Estimate'] = X
 
-for tk in range(150):
+# just to make sure the error variable is declarated
+error ='infeasible'
+
+for tk in range(40):
 
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
@@ -129,6 +132,7 @@ for tk in range(150):
             equations which requires formulating the constraint out of region (ey <=eymin or ey>= eymax)  
     '''
 
+    m.set_obstacle(target_distance=target_distance)
 
 
     ## Convergence
@@ -244,16 +248,21 @@ for tk in range(150):
             print('-' * 50)
 
         else:
-            print('It is not optimal, recomputing by the new trust region \n')
-            print(f'Trust region too large. Solving again with radius={tr_radius}')
+            break
+            # print('It is not optimal, recomputing by the new trust region \n')
+            # print(f'Trust region too large. Solving again with radius={tr_radius}')
+            #
+            # # tr_radius /= alpha
+            # tr_radius *= beta
+            #
+            # if tr_radius < 1e-2:
+            #     break
 
-            # tr_radius /= alpha
-            tr_radius *= beta
+            # problem.set_parameters(tr_radius=tr_radius)
 
-            if tr_radius < 1e-2:
-                break
-
-            problem.set_parameters(tr_radius=tr_radius)
+    if error=='infeasible':
+        print(' \n\n Infeasible Solution Halted')
+        break
 
     print('')
     print(format_line('Time for iteration', time() - t0_it, 's'))
@@ -264,6 +273,8 @@ logs_pickle['Controls'] = np.vstack(control_history_list).transpose()
 logs_pickle['Optimization_Params'] = optimization_history
 logs_pickle['Current_Map'] = m.current_reference_map
 logs_pickle['kappa'] = np.vstack(curvature_history_list).transpose()
+
+logs_pickle['obstacle_locs'] = m.get_obstacle_locs()
 
 file_name = './Logs/logs_pickle_tire.pickle'
 with open(file_name, 'wb') as handle:
