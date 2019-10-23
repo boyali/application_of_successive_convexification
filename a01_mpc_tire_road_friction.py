@@ -84,14 +84,13 @@ logs_pickle = dict()
 logs_pickle['Initial Estimate'] = X
 
 # just to make sure the error variable is declarated
-error ='infeasible'
+error = 'infeasible'
 
-for tk in range(40):
+for tk in range(120):
 
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
     print('-' * 50)
-
 
     ## Get Curvature Reference
     curvature_ref = m.get_curvature_ref()
@@ -133,7 +132,6 @@ for tk in range(40):
     '''
 
     m.set_obstacle(target_distance=target_distance)
-
 
     ## Convergence
     converged = False
@@ -260,7 +258,7 @@ for tk in range(40):
 
             # problem.set_parameters(tr_radius=tr_radius)
 
-    if error=='infeasible':
+    if error == 'infeasible':
         print(' \n\n Infeasible Solution Halted')
         break
 

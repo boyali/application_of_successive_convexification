@@ -73,15 +73,16 @@ class Model:
 
         ## SET OBSTACLE LOCATIONS
         # self.obs_loc = [20, 60, 95, 130]  # obstacle is located at s_o1 = 15 m
-        self.obs_loc = [20 ]  # obstacle is located at s_o1 = 15 m
+        self.obs_loc = [20]  # obstacle is located at s_o1 = 15 m
 
         '''
             These parameters are set by default to higher margins so that they are passive when there is no obstacle
         '''
         self.par = dict()
-        self.par['eydes_bound'] = cvx.Parameter(value=5)  # desired eydes_min or max is set by this parameter
-        self.par['eydes_sign'] = cvx.Parameter(shape=(self.K,), value=np.zeros((self.K,)))
-        self.which_side = -1 # automatic switch for slaloms
+        # desired eydes_min or max is set by this parameter
+        self.par['eydes_bound'] = cvx.Parameter(shape=(self.K, 1), value=5 * np.ones((self.K, 1)))
+        self.par['eydes_sign'] = cvx.Parameter(shape=(self.K, self.K), value=np.zeros((self.K, self.K)), integer=True)
+        self.which_side = -1  # automatic switch for slaloms
 
         self.obstacle_avoided = {k: 0 for k in range(len(self.obs_loc))}
         self.obstacle_xys = []
@@ -329,10 +330,10 @@ class Model:
         eybound = params_dict['eydes_bound']
         eysign = params_dict['eydes_sign']
 
-
         constraints = []
-        # constraints += [eysign[k] * X_v[4, k] <= eybound for k in range(self.K)]
-        constraints += [eysign * X_v[4, :] <= eybound]
+        constraints += [eysign @ X_v[4, :][:, None] <= eysign @ eybound]
+        # constraints += [eysign[k] * X_v[4, k]  <= eybound for k in range(self.K)]
+        # constraints += [eysign * X_v[4, :] <= eybound]
 
         return constraints
 
@@ -441,6 +442,7 @@ class Model:
             - if there is an obstacle find the ind in the given horizon of it
             - randomly generate left or right pass of the obstacle
 
+            [eysign @ X_v[4, :][:, None] <= eysign @ eybound]
 
         :return: nothing, just set
         '''
@@ -461,7 +463,6 @@ class Model:
             loc_of_obstactle = self.obs_loc[obs_in_range[0]]  # in meters along s
             ind_obs_in_cur_s = np.floor((loc_of_obstactle - self.current_station_dist) / sigma).astype(int)
 
-
             obs_index = obs_in_range[0]
             if self.obstacle_avoided[obs_index] == 0:
                 # which_side = np.random.choice([-1, 1])
@@ -478,17 +479,19 @@ class Model:
             # only the obstacle location index will be active
             constraint_indices = np.zeros((self.K,))
 
-            if ind_obs_in_cur_s>=2 or ind_obs_in_cur_s<=self.K-1:
-                constraint_indices[[ind_obs_in_cur_s-2,
-                                   ind_obs_in_cur_s-1, ind_obs_in_cur_s]] = self.obstacle_avoided[obs_index]
+            if ind_obs_in_cur_s >= 2 and ind_obs_in_cur_s <= self.K - 1:
+                constraint_indices[[ind_obs_in_cur_s - 2,
+                                    ind_obs_in_cur_s - 1, ind_obs_in_cur_s]] = self.obstacle_avoided[obs_index]
 
-                self.par['eydes_bound'].value = -6.0
-                self.par['eydes_sign'].value = constraint_indices
+                # constraint_indices[[ind_obs_in_cur_s]] = self.obstacle_avoided[obs_index]
+
+                self.par['eydes_sign'].value = np.diag(constraint_indices)
+                self.par['eydes_bound'].value = -(constraint_indices * 2)[:, None]
 
             else:
                 constraint_indices[ind_obs_in_cur_s] = self.obstacle_avoided[obs_index]
-                self.par['eydes_bound'].value = -2.0
-                self.par['eydes_sign'].value = constraint_indices
+                self.par['eydes_sign'].value = np.diag(constraint_indices)
+                self.par['eydes_bound'].value = -(constraint_indices * 2)[:, None]
 
 
 
@@ -497,17 +500,10 @@ class Model:
                 Check which values remain in as a constraint
             '''
 
-
             constraint_indices = np.zeros((self.K,))
-            self.par['eydes_sign'].value =  constraint_indices
-
-            self.par['eydes_bound'].value = 0
-
-        # if loc_of_obstactle > self.current_station_dist:
-        #     constraint_indices = np.zeros((self.K,))
-        #     self.par['eydes_sign'].value = constraint_indices
-        #     self.par['eydes_bound'].value = 0
-
+            constraint_indices[-1] = 1
+            self.par['eydes_sign'].value = -np.diag(constraint_indices)
+            self.par['eydes_bound'].value = np.zeros((self.K, 1))
 
     def get_obstacle_locs(self):
         return self.obstacle_xys
