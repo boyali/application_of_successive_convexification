@@ -22,7 +22,7 @@ class Model:
         # Parameters
         self.lr = 1.4  # the distance of real axle center to the center of gravity
         self.l = 2.9  # the distance between the axles
-        self.mu = 0.6  # road friction
+        self.mu = 0.9  # road friction
         self.mass = 1500  # kg
 
         # Fixed_Time Variables
@@ -64,12 +64,15 @@ class Model:
 
         # self.tf_guess = self.x_final[3]
 
-        # set slacks
+        # SET SLACKS
         # Slack variables for the soft constraints
         self.s_prime_delta = cvx.Variable((K,), nonneg=True)
         self.s_prime_speed = cvx.Variable((K,), nonneg=True)
         self.s_prime_dist = cvx.Variable((K,), nonneg=True)
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
+
+        ## SET OBSTACLE LOCATIONS
+        self.obs_loc = [15]  # obstacle is located at s_o1 = 15 m
 
     def get_equations(self):
         """
@@ -255,13 +258,13 @@ class Model:
         """
         constraints = []
         # TIRE ADHESION COEFFICIENT CONSTRAINT
-        # muge = cvx.Constant(self.mu * self.g)
-        #
-        # a_y = [kappa[k] * X_last_p[6, k] ** 2 + 2 * kappa[k] * X_last_p[6, k] * (X_v[6, k] - X_last_p[6, k])
-        #        for k in range(self.K)]
-        #
-        # soc_constraints = [cvx.square(U_v[0, k]) + a_y[k] ** 2 <= muge ** 2 for k in range(self.K)]
-        # constraints += soc_constraints
+        muge = cvx.Constant(self.mu * self.g)
+
+        a_y = [kappa[k] * X_last_p[6, k] ** 2 + 2 * kappa[k] * X_last_p[6, k] * (X_v[6, k] - X_last_p[6, k])
+               for k in range(self.K)]
+
+        soc_constraints = [cvx.square(U_v[0, k]) + a_y[k] ** 2 <= muge ** 2 for k in range(self.K)]
+        constraints += soc_constraints
 
         # STATE BOUNDS and LOWER BOUNDS
         state_upper = upper_bounds_states

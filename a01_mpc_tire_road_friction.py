@@ -73,6 +73,7 @@ X = integrator.integrate_nonlinear_full(x0, U, kappa_estimated)
 
 state_history_list = []
 control_history_list = []
+curvature_history_list = []
 optimization_history = {key: [] for key in ['sc_cost', 'constraint_cost']}
 
 # state_history_list.append(X[:, 0].copy())
@@ -82,7 +83,7 @@ optimization_history = {key: [] for key in ['sc_cost', 'constraint_cost']}
 logs_pickle = dict()
 logs_pickle['Initial Estimate'] = X
 
-for tk in range(500):
+for tk in range(150):
     t0_it = time()
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
@@ -116,6 +117,7 @@ for tk in range(500):
     state_history_list.append(X[:, 0].copy())
     state_history_list[-1][3] = s0  # put s0 back when saving
     control_history_list.append(U[:, 0].copy())
+    curvature_history_list.append(kappa_estimated[0].copy())
 
     ## Convergence
     converged = False
@@ -248,7 +250,7 @@ logs_pickle['States'] = np.vstack(state_history_list).transpose()
 logs_pickle['Controls'] = np.vstack(control_history_list).transpose()
 logs_pickle['Optimization_Params'] = optimization_history
 logs_pickle['Current_Map'] = m.current_reference_map
-# logs_pickle['kappa'] = kappa_estimated
+logs_pickle['kappa'] = np.vstack(curvature_history_list).transpose()
 
 file_name = './Logs/logs_pickle_tire.pickle'
 with open(file_name, 'wb') as handle:

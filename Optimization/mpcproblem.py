@@ -53,9 +53,14 @@ class MPCproblem:
 
         self.par['kappa'] = cvx.Parameter(self.K)  # first row is reserved for the distance
 
-        # ADD Desired Velocity
-        self.par['Vdes'] = cvx.Parameter()
-        self.par['eydes'] = cvx.Parameter()
+        # ADD Desired Velocity and Obstacle Avoidance Paprameters
+        self.par['Vdes'] = cvx.Parameter()  # desired velocity is set by this parameter
+
+        '''
+            These parameters are set by default to higher margins so that they are passive when there is no obstacle
+        '''
+        self.par['eydes_min'] = cvx.Parameter(value=-1) # desired eydes_min is set by this parameter
+        self.par['eydes_max'] = cvx.Parameter(value=1)  # desired eydes_max is set by this parameter
 
         # Constraints:
         constraints = []
