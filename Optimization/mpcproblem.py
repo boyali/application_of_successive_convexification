@@ -61,14 +61,19 @@ class MPCproblem:
         '''
         self.par['eydes_min'] = cvx.Parameter(value=-1) # desired eydes_min is set by this parameter
         self.par['eydes_max'] = cvx.Parameter(value=1)  # desired eydes_max is set by this parameter
+        self.par['obstacle_ind'] = cvx.Parameter(value=0, integer=True)  # desired eydes_max is set by this parameter
 
         # Constraints:
         constraints = []
 
-        # Model:
+        # Get Model Constraints
         constraints += m.get_constraints(self.var['X'], self.var['U'],
                                          self.par['X_last'], self.par['U_last'],
                                          self.par['kappa'])
+
+
+        # Get Obstacle Constraints
+        constraints += m.get_constraints_obstacles(self.var["X"], self.par)
 
         # Dynamics:
         constraints += [

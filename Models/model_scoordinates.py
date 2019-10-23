@@ -22,7 +22,7 @@ class Model:
         # Parameters
         self.lr = 1.4  # the distance of real axle center to the center of gravity
         self.l = 2.9  # the distance between the axles
-        self.mu = 0.9  # road friction
+        self.mu = 0.7  # road friction
         self.mass = 1500  # kg
 
         # Fixed_Time Variables
@@ -301,6 +301,17 @@ class Model:
 
         ## ZERO DIVISION
         # constraints += [1 - kappa[k] * X_v[4, k] >= 0.01 for k in range(self.K)]
+
+        return constraints
+
+
+    def get_constraints_obstacles(self, X, params_dict):
+        eymin = params_dict['eydes_min']
+        eymax = params_dict['eydes_max']
+        eyind = params_dict['obstacle_ind']
+
+        constraints = []
+
 
         return constraints
 

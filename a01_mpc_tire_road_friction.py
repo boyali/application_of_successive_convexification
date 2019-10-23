@@ -84,12 +84,11 @@ logs_pickle = dict()
 logs_pickle['Initial Estimate'] = X
 
 for tk in range(150):
-    t0_it = time()
+
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
     print('-' * 50)
 
-    t0_tm = time()
 
     ## Get Curvature Reference
     curvature_ref = m.get_curvature_ref()
@@ -103,6 +102,8 @@ for tk in range(150):
     # ey, epsi = m.compute_initial_errors([Xw0, Yw0, Psiw0], [Xc0, Yc0, Psic0])
     # X[4, 0] = ey
     # X[5, 0] = epsi
+
+    t0_tm = time()
 
     X = integrator.integrate_nonlinear_full(X[:, 0], U, kappa_estimated)
     A_bar, B_bar, C_bar, z_bar = integrator.calculate_discretization(X, U, kappa_estimated)
@@ -119,8 +120,20 @@ for tk in range(150):
     control_history_list.append(U[:, 0].copy())
     curvature_history_list.append(kappa_estimated[0].copy())
 
+    '''
+        --------------- HANDLE CONSTRAINTS HERE -----------------
+        * check current s0 --> how much we have proceeded on the current path
+        * check distance to obstacle if it is in the planning range 
+            * If it is in the planning range, define the constraint index ey[k] ><= 0.5
+            * But obstacle avoidance constraints are unusual than the standard constraint (eymin < ey < eymax) 
+            equations which requires formulating the constraint out of region (ey <=eymin or ey>= eymax)  
+    '''
+
+
+
     ## Convergence
     converged = False
+    t0_it = time()
 
     for it in range(iterations):
         error = problem.solve(verbose=verbose_solver, solver=solver, max_iters=200)

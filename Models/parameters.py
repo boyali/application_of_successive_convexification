@@ -79,7 +79,7 @@ upper_bounds_states['epsi'] = np.deg2rad(3)
 lower_bounds_states['epsi'] = -np.deg2rad(3)
 
 upper_bounds_states['Vx'] = 20  # m/s
-lower_bounds_states['Vx'] = 10
+lower_bounds_states['Vx'] = 5
 
 upper_bounds_states['ts'] = 10  # time scale
 lower_bounds_states['ts'] = 0
