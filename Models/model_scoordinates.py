@@ -72,18 +72,21 @@ class Model:
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
 
         ## SET OBSTACLE LOCATIONS
-        # self.obs_loc = [20, 60, 95, 130, 180]  # obstacle is located at s_o1 = 15 m
-        self.obs_loc = [20, 60]  # obstacle is located at s_o1 = 15 m
-        self.b_obs_reset = False
+        self.obs_loc = [20, 60, 95, 130, 180]  # obstacle is located at s_o1 = 15 m
+        # self.obs_loc = [20, 60]  # obstacle is located at s_o1 = 15 m
+
 
         '''
             These parameters are set by default to higher margins so that they are passive when there is no obstacle
         '''
         self.par = dict()
         # desired eydes_min or max is set by this parameter
-        self.par['eydes_bound'] = cvx.Parameter(shape=(self.K, ), value=5 * np.ones((self.K, )))
-        self.par['eydes_sign'] = cvx.Parameter(shape=(self.K, ), value=np.zeros((self.K, )))
+        self.par['eydes_bound'] = cvx.Parameter(shape=((self.K, 1)), value= 0.5 * np.ones((self.K, 1)))
+        self.par['eydes_sign'] = cvx.Parameter(name='dynamic', shape=((self.K, self.K)), value=np.ones((self.K, self.K)))
+        self.constraint_indices = None
+
         self.which_side = -1  # automatic switch for slaloms
+        self.b_dc = False
 
         self.obstacle_avoided = {k: 0 for k in range(len(self.obs_loc))}
         self.obstacle_xys = []
@@ -329,10 +332,8 @@ class Model:
         '''
 
         constraints = []
-        constraints += [self.par['eydes_sign'][k] * X_v[4, :][k] <= self.par['eydes_bound'][k] for k in range(self.K) ]
-        # constraints += [self.par['eydes_sign'] @ X_v[4, :][:, None] <= self.par['eydes_sign'] @  self.par['eydes_bound']]
-        # constraints += [eysign[k] * X_v[4, k]  <= eybound for k in range(self.K)]
-        # constraints += [eysign * X_v[4, :] <= eybound]
+        constraints += [self.par['eydes_sign'] @ X_v[4, :][:, None] <= self.par['eydes_sign'] @ self.par['eydes_bound']]
+
 
         return constraints
 
@@ -477,22 +478,22 @@ class Model:
 
             ## ONE-HOT ENCODING OF self.K
             # only the obstacle location index will be active
-            constraint_indices = np.zeros((self.K,))
+            self.constraint_indices = np.zeros((self.K,))
 
             if ind_obs_in_cur_s >= 2 and ind_obs_in_cur_s <= self.K - 1:
-                constraint_indices[[ind_obs_in_cur_s - 2,
+                self.constraint_indices[[ind_obs_in_cur_s - 2,
                                     ind_obs_in_cur_s - 1, ind_obs_in_cur_s]] = self.obstacle_avoided[obs_index]
 
-                # constraint_indices[[ind_obs_in_cur_s]] = self.obstacle_avoided[obs_index]
 
-                self.par['eydes_sign'].value = constraint_indices
-                self.par['eydes_bound'].value = -self.par['eydes_sign'].value * constraint_indices * 2
+                self.par['eydes_sign'].value = np.diag(self.constraint_indices)
+                self.par['eydes_bound'].value =-self.constraint_indices[:, None]*2
+
+
 
             else:
-                constraint_indices[ind_obs_in_cur_s] = self.obstacle_avoided[obs_index]
-                self.par['eydes_sign'].value =constraint_indices
-                self.par['eydes_bound'].value = - self.par['eydes_sign'].value * constraint_indices * 2
-
+                self.constraint_indices[ind_obs_in_cur_s] = self.obstacle_avoided[obs_index]
+                self.par['eydes_sign'].value = np.diag(self.constraint_indices)
+                self.par['eydes_bound'].value[:] = -self.constraint_indices[:, None]*2
 
 
         else:
@@ -500,10 +501,20 @@ class Model:
                 Check which values remain in as a constraint
             '''
 
+            # constraint_indices = np.zeros((self.K,))*self.which_side
+            self.par['eydes_sign'].value = np.diag(self.constraint_indices)
+            self.par['eydes_bound'].value =  -self.constraint_indices[:, None]*0.1
 
-            constraint_indices = np.ones((self.K,))
-            self.par['eydes_sign'].value =  constraint_indices
-            self.par['eydes_bound'].value = np.zeros((self.K, ))
+            # constraint_indices = np.zeros((self.K,))
+            # constraint_indices[-1] = -self.which_side
+
+            # if not self.b_dc:
+            #     self.par['eydes_sign'].value = np.diag(constraint_indices)
+            #     self.par['eydes_bound'].value = -constraint_indices[:, None] * 0.2
+            #     self.b_dc = True
+            #
+            # else:
+            #     self.par['eydes_bound'].value = self.par['eydes_bound'].value * 0.9
 
 
 

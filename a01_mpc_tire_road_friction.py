@@ -12,7 +12,7 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 30, 12  # [m], [m/s]
+target_distance, target_speed = 40, 12  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
@@ -95,7 +95,7 @@ else:
     file_name = './Logs/logs_pickle_tire_no_obstacle.pickle'
 
 
-for tk in range(120):
+for tk in range(250):
 
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
