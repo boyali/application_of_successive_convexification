@@ -12,7 +12,7 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 30, 10  # [m], [m/s]
+target_distance, target_speed = 30, 12  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
@@ -86,6 +86,15 @@ logs_pickle['Initial Estimate'] = X
 # just to make sure the error variable is declarated
 error = 'infeasible'
 
+##
+if len(m.obs_loc):
+
+    file_name = './Logs/logs_pickle_tire_obstacle.pickle'
+
+else:
+    file_name = './Logs/logs_pickle_tire_no_obstacle.pickle'
+
+
 for tk in range(120):
 
     print('-' * 50)
@@ -131,14 +140,15 @@ for tk in range(120):
             equations which requires formulating the constraint out of region (ey <=eymin or ey>= eymax)  
     '''
 
-    m.set_obstacle(target_distance=target_distance)
+    if len(m.obs_loc):
+        m.set_obstacle(target_distance=target_distance)
 
     ## Convergence
     converged = False
     t0_it = time()
 
     for it in range(iterations):
-        error = problem.solve(verbose=verbose_solver, solver=solver, max_iters=200)
+        error = problem.solve(verbose=verbose_solver, solver=solver, max_iters=200, warm_start= False)
         print(format_line('Solver Error', error))
 
         if error in ['optimal', 'optimal_inaccurate']:
@@ -274,6 +284,7 @@ logs_pickle['kappa'] = np.vstack(curvature_history_list).transpose()
 
 logs_pickle['obstacle_locs'] = m.get_obstacle_locs()
 
-file_name = './Logs/logs_pickle_tire.pickle'
+# file_name = './Logs/logs_pickle_tire_no_obstacle.pickle'
+# file_name = './Logs/logs_pickle_tire_obstacle.pickle'
 with open(file_name, 'wb') as handle:
     pickle.dump(logs_pickle, handle, protocol=pickle.HIGHEST_PROTOCOL)

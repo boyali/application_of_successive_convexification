@@ -72,16 +72,17 @@ class Model:
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
 
         ## SET OBSTACLE LOCATIONS
-        # self.obs_loc = [20, 60, 95, 130]  # obstacle is located at s_o1 = 15 m
-        self.obs_loc = [20]  # obstacle is located at s_o1 = 15 m
+        # self.obs_loc = [20, 60, 95, 130, 180]  # obstacle is located at s_o1 = 15 m
+        self.obs_loc = [20, 60]  # obstacle is located at s_o1 = 15 m
+        self.b_obs_reset = False
 
         '''
             These parameters are set by default to higher margins so that they are passive when there is no obstacle
         '''
         self.par = dict()
         # desired eydes_min or max is set by this parameter
-        self.par['eydes_bound'] = cvx.Parameter(shape=(self.K, 1), value=5 * np.ones((self.K, 1)))
-        self.par['eydes_sign'] = cvx.Parameter(shape=(self.K, self.K), value=np.zeros((self.K, self.K)), integer=True)
+        self.par['eydes_bound'] = cvx.Parameter(shape=(self.K, ), value=5 * np.ones((self.K, )))
+        self.par['eydes_sign'] = cvx.Parameter(shape=(self.K, ), value=np.zeros((self.K, )))
         self.which_side = -1  # automatic switch for slaloms
 
         self.obstacle_avoided = {k: 0 for k in range(len(self.obs_loc))}
@@ -326,12 +327,10 @@ class Model:
         :param params_dict:
         :return:
         '''
-        params_dict = self.par
-        eybound = params_dict['eydes_bound']
-        eysign = params_dict['eydes_sign']
 
         constraints = []
-        constraints += [eysign @ X_v[4, :][:, None] <= eysign @ eybound]
+        constraints += [self.par['eydes_sign'][k] * X_v[4, :][k] <= self.par['eydes_bound'][k] for k in range(self.K) ]
+        # constraints += [self.par['eydes_sign'] @ X_v[4, :][:, None] <= self.par['eydes_sign'] @  self.par['eydes_bound']]
         # constraints += [eysign[k] * X_v[4, k]  <= eybound for k in range(self.K)]
         # constraints += [eysign * X_v[4, :] <= eybound]
 
@@ -475,6 +474,7 @@ class Model:
                 Yo = np.interp(loc_of_obstactle, self.current_reference_map[:, 0], self.current_reference_map[:, 2])
                 self.obstacle_xys.append([Xo, Yo])
 
+
             ## ONE-HOT ENCODING OF self.K
             # only the obstacle location index will be active
             constraint_indices = np.zeros((self.K,))
@@ -485,13 +485,13 @@ class Model:
 
                 # constraint_indices[[ind_obs_in_cur_s]] = self.obstacle_avoided[obs_index]
 
-                self.par['eydes_sign'].value = np.diag(constraint_indices)
-                self.par['eydes_bound'].value = -(constraint_indices * 2)[:, None]
+                self.par['eydes_sign'].value = constraint_indices
+                self.par['eydes_bound'].value = -self.par['eydes_sign'].value * constraint_indices * 2
 
             else:
                 constraint_indices[ind_obs_in_cur_s] = self.obstacle_avoided[obs_index]
-                self.par['eydes_sign'].value = np.diag(constraint_indices)
-                self.par['eydes_bound'].value = -(constraint_indices * 2)[:, None]
+                self.par['eydes_sign'].value =constraint_indices
+                self.par['eydes_bound'].value = - self.par['eydes_sign'].value * constraint_indices * 2
 
 
 
@@ -500,10 +500,12 @@ class Model:
                 Check which values remain in as a constraint
             '''
 
-            constraint_indices = np.zeros((self.K,))
-            constraint_indices[-1] = 1
-            self.par['eydes_sign'].value = -np.diag(constraint_indices)
-            self.par['eydes_bound'].value = np.zeros((self.K, 1))
+
+            constraint_indices = np.ones((self.K,))
+            self.par['eydes_sign'].value =  constraint_indices
+            self.par['eydes_bound'].value = np.zeros((self.K, ))
+
+
 
     def get_obstacle_locs(self):
         return self.obstacle_xys
