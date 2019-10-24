@@ -22,7 +22,7 @@ class Model:
         # Parameters
         self.lr = 1.4  # the distance of real axle center to the center of gravity
         self.l = 2.9  # the distance between the axles
-        self.mu = 1  # road friction
+        self.mu = 0.8  # road friction
         self.mass = 1500  # kg
 
         # Fixed_Time Variables
@@ -72,8 +72,8 @@ class Model:
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
 
         ## SET OBSTACLE LOCATIONS
-        self.obs_loc = [20, 60, 95, 130, 180]  # obstacle is located at s_o1 = 15 m
-        # self.obs_loc = [20, 60]  # obstacle is located at s_o1 = 15 m
+        # self.obs_loc = [20, 60, 130, 180]  # obstacle is located at s_o1 = 15 m
+        self.obs_loc = []  # obstacle is located at s_o1 = 15 m
 
 
         '''
@@ -85,8 +85,11 @@ class Model:
         self.par['eydes_sign'] = cvx.Parameter(name='dynamic', shape=((self.K, self.K)), value=np.ones((self.K, self.K)))
         self.constraint_indices = None
 
+        # Boundary conditions to reset the constraints
+        self.par['boundary_coeff'] = cvx.Parameter(value=0)
+        self.par['ba'] = cvx.Parameter(value=0.05)
+
         self.which_side = -1  # automatic switch for slaloms
-        self.b_dc = False
 
         self.obstacle_avoided = {k: 0 for k in range(len(self.obs_loc))}
         self.obstacle_xys = []
@@ -334,6 +337,10 @@ class Model:
         constraints = []
         constraints += [self.par['eydes_sign'] @ X_v[4, :][:, None] <= self.par['eydes_sign'] @ self.par['eydes_bound']]
 
+        # Boundary
+        constraints +=[self.par['boundary_coeff'] * X_v[4, -1] <=self.par['boundary_coeff']*self.par['ba'] ]
+        constraints += [self.par['boundary_coeff'] * X_v[4, -1] >= -self.par['boundary_coeff'] *self.par['ba'] ]
+
 
         return constraints
 
@@ -464,6 +471,8 @@ class Model:
             ind_obs_in_cur_s = np.floor((loc_of_obstactle - self.current_station_dist) / sigma).astype(int)
 
             obs_index = obs_in_range[0]
+            self.par['boundary_coeff'].value = 0
+
             if self.obstacle_avoided[obs_index] == 0:
                 # which_side = np.random.choice([-1, 1])
                 self.which_side *= -1
@@ -501,10 +510,13 @@ class Model:
                 Check which values remain in as a constraint
             '''
 
-            constraint_indices = np.zeros((self.K,))
-            constraint_indices[-1] = self.which_side
+            self.constraint_indices = np.zeros((self.K,))
+            self.constraint_indices[-1] = self.which_side
             self.par['eydes_sign'].value = np.diag(self.constraint_indices)
-            self.par['eydes_bound'].value =  self.constraint_indices[:, None]*0.1
+            self.par['eydes_bound'].value =  -self.constraint_indices[:, None]*0.05
+            # self.par['eydes_bound'].value =  self.constraint_indices[:, None]*0.1
+
+            self.par['boundary_coeff'].value = 1
 
             # constraint_indices = np.zeros((self.K,))
             # constraint_indices[-1] = -self.which_side

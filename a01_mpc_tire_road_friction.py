@@ -12,7 +12,7 @@ rpath = np.loadtxt('test_path.txt')
 
 # INITIALIZATION--------------------------------------------------------------------------------------------------------
 
-target_distance, target_speed = 40, 12  # [m], [m/s]
+target_distance, target_speed = 40, 10  # [m], [m/s]
 sigma = target_distance
 
 m = Model(rpath, target_distance, target_speed)
@@ -95,7 +95,7 @@ else:
     file_name = './Logs/logs_pickle_tire_no_obstacle.pickle'
 
 
-for tk in range(250):
+for tk in range(300):
 
     print('-' * 50)
     print('-' * 18 + f' Time Step {str(tk + 1).zfill(2)} ' + '-' * 18)
@@ -269,8 +269,9 @@ for tk in range(250):
             # problem.set_parameters(tr_radius=tr_radius)
 
     if error == 'infeasible':
+        m.par['ba'].value += 0.05
         print(' \n\n Infeasible Solution Halted')
-        break
+
 
     print('')
     print(format_line('Time for iteration', time() - t0_it, 's'))
