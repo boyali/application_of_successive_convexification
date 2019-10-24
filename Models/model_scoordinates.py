@@ -22,7 +22,7 @@ class Model:
         # Parameters
         self.lr = 1.4  # the distance of real axle center to the center of gravity
         self.l = 2.9  # the distance between the axles
-        self.mu = 0.8  # road friction
+        self.mu = 1  # road friction
         self.mass = 1500  # kg
 
         # Fixed_Time Variables
@@ -501,9 +501,10 @@ class Model:
                 Check which values remain in as a constraint
             '''
 
-            # constraint_indices = np.zeros((self.K,))*self.which_side
+            constraint_indices = np.zeros((self.K,))
+            constraint_indices[-1] = self.which_side
             self.par['eydes_sign'].value = np.diag(self.constraint_indices)
-            self.par['eydes_bound'].value =  -self.constraint_indices[:, None]*0.1
+            self.par['eydes_bound'].value =  self.constraint_indices[:, None]*0.1
 
             # constraint_indices = np.zeros((self.K,))
             # constraint_indices[-1] = -self.which_side
