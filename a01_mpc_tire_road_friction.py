@@ -285,7 +285,7 @@ logs_pickle['kappa'] = np.vstack(curvature_history_list).transpose()
 
 logs_pickle['obstacle_locs'] = m.get_obstacle_locs()
 
-# file_name = './Logs/logs_pickle_tire_no_obstacle.pickle'
+file_name = './Logs/logs_pickle_tire_no_obstacle.pickle'
 # file_name = './Logs/logs_pickle_tire_obstacle.pickle'
 with open(file_name, 'wb') as handle:
     pickle.dump(logs_pickle, handle, protocol=pickle.HIGHEST_PROTOCOL)
