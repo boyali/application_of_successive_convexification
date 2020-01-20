@@ -72,8 +72,8 @@ class Model:
         self.s_prime_acc = cvx.Variable((K,), nonneg=True)
 
         ## SET OBSTACLE LOCATIONS
-        # self.obs_loc = [20, 60, 130, 180]  # obstacle is located at s_o1 = 15 m
-        self.obs_loc = []  # obstacle is located at s_o1 = 15 m
+        self.obs_loc = [20, 60, 130, 180]  # obstacle is located at s_o1 = 15 m
+        # self.obs_loc = []  # obstacle is located at s_o1 = 15 m
 
 
         '''
