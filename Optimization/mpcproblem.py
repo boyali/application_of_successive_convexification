@@ -46,8 +46,8 @@ class MPCproblem:
         self.par['tr_radius'] = cvx.Parameter(nonneg=True)
 
         # Original - Unscaled Variables
-        self.var['X'] = self.par['D_xhat'] * self.var['X_hat'] + self.par['C_xhat']
-        self.var['U'] = self.par['D_uhat'] * self.var['U_hat'] + self.par['C_uhat']
+        self.var['X'] = self.par['D_xhat'] @ self.var['X_hat'] + self.par['C_xhat']
+        self.var['U'] = self.par['D_uhat'] @ self.var['U_hat'] + self.par['C_uhat']
         # self.var['nu'] = self.par['D_xhat'] * self.var['nu_hat'] + self.par['C_xhat'][:, :-1]
         self.var['nu'] = cvx.Variable((m.nx, K - 1))
 
@@ -55,7 +55,6 @@ class MPCproblem:
 
         # ADD Desired Velocity and Obstacle Avoidance Paprameters
         self.par['Vdes'] = cvx.Parameter()  # desired velocity is set by this parameter
-
 
         # Constraints:
         constraints = []
@@ -65,16 +64,15 @@ class MPCproblem:
                                          self.par['X_last'], self.par['U_last'],
                                          self.par['kappa'])
 
-
         # Get Obstacle Constraints
         constraints += m.get_constraints_obstacles(self.var["X"])
 
         # Dynamics:
         constraints += [
             self.var['X'][:, k + 1] ==
-            cvx.reshape(self.par['A_bar'][:, k], (m.nx, m.nx)) * self.var['X'][:, k]
-            + cvx.reshape(self.par['B_bar'][:, k], (m.nx, m.nu)) * self.var['U'][:, k]
-            + cvx.reshape(self.par['C_bar'][:, k], (m.nx, m.nu)) * self.var['U'][:, k + 1]
+            cvx.reshape(self.par['A_bar'][:, k], (m.nx, m.nx)) @ self.var['X'][:, k]
+            + cvx.reshape(self.par['B_bar'][:, k], (m.nx, m.nu)) @ self.var['U'][:, k]
+            + cvx.reshape(self.par['C_bar'][:, k], (m.nx, m.nu)) @ self.var['U'][:, k + 1]
             + self.par['z_bar'][:, k]
             + self.var['nu'][:, k]
             for k in range(K - 1)
@@ -89,8 +87,8 @@ class MPCproblem:
         # du = self.var['U_hat'] - (self.par['D_u'] * self.par['U_last'] + self.par['C_u'])
         # dx = self.var['X_hat'] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])
 
-        du = self.var['U_hat'] - (self.par['D_u'] * self.par['U_last'] + self.par['C_u'])
-        dx = self.var['X_hat'][4:-1, :] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])[4:-1, :]
+        du = self.var['U_hat'] - (self.par['D_u'] @ self.par['U_last'] + self.par['C_u'])
+        dx = self.var['X_hat'][4:-1, :] - (self.par['D_x'] @ self.par['X_last'] + self.par['C_x'])[4:-1, :]
         # dx = self.var['X_hat'] - (self.par['D_x'] * self.par['X_last'] + self.par['C_x'])
         # ddu = cvx.vstack([du, dx])
 
@@ -100,8 +98,8 @@ class MPCproblem:
 
         # Objective:
         # model_objective = m.get_objective(self.var['X'], self.var['U'], self.par['X_last'], self.par['U_last'])
-        model_objective = m.get_objective(self.var['X_hat'], self.var['U_hat'], self.par['D_x'] * self.par['X_last']
-                                          + (self).par['C_x'], self.par['D_u'] * self.par['U_last'] + (self).par['C_u'],
+        model_objective = m.get_objective(self.var['X_hat'], self.var['U_hat'], self.par['D_x'] @ self.par['X_last']
+                                          + (self).par['C_x'], self.par['D_u'] @ self.par['U_last'] + (self).par['C_u'],
                                           self.par['Vdes'])
 
         sc_objective = cvx.Minimize(self.par['weight_nu'] * cvx.norm(self.var['nu'], 1))
@@ -157,6 +155,7 @@ class MPCproblem:
         try:
             self.prob.solve(**kwargs)
             error = self.prob.solution.status
+
         except cvx.SolverError:
             error = self.prob.solution.status
 

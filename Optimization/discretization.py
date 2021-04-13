@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.integrate import odeint, solve_ivp
-from scikits.odes import odeint as sc
+
+
+# from scikits.odes import odeint as sc
 
 
 class FirstOrderHold:
